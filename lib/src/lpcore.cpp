@@ -44,38 +44,55 @@
 
 namespace {
 
-double
-to_double(const char* s, double bad_value) noexcept
+template<typename T>
+std::pair<T, bool> to<T>(const char *s, T def) noexcept;
+
+template<>
+std::pair<double, bool>
+to<double>(const char *s, double def) noexcept
 {
     char* c;
     errno = 0;
     double value = std::strtod(s, &c);
 
     if ((errno == ERANGE and (value == HUGE_VAL or value == -HUGE_VAL)) or
-        (value == 0.0 and c == s))
-        return bad_value;
+        (value == 0.0 and c == s)) {
+        fmt::print(stderr, "Fail to convert `{}' to double. Default {} is used.\n",
+                    s, def);
+        return std::make_pair(def, false);
+    }
 
-    return value;
+    return std::make_pair(value, true);
 }
 
-int
-to_int(const char* s, int bad_value) noexcept
+template<>
+std::pair<int, bool>
+to<int>(const char* s, int def) noexcept
 {
     char* c;
     errno = 0;
     long value = std::strtol(s, &c, 10);
 
     if ((errno == ERANGE and (value == LONG_MIN or value == LONG_MAX)) or
-        (value == 0 and c == s))
-        return bad_value;
+        (value == 0 and c == s)) {
+        fmt::print(stderr, "Fail to convert `{}' to int. Default {} is used.\n",
+                    s, def);
+        return std::make_pair(def, false);
+    }
 
-    if (value < INT_MIN)
-        return INT_MIN;
+    if (value < INT_MIN) {
+        fmt::print(stderr, "`{}' is too big to be stored into a integer. {} is used.\n",
+                   s, INT_MIN);
+        return std::make_pair(value, true);
+    }
 
-    if (value > INT_MAX)
-        return INT_MAX;
+    if (value > INT_MAX) {
+        fmt::print(stderr, "`{}' is too big to be stored into a integer. {} is used.\n",
+                   s, INT_MAX);
+        return std::make_pair(value, true);
+    }
 
-    return value;
+    return std::make_pair(value, true);
 }
 
 std::tuple<std::string, baryonyx::parameter>
